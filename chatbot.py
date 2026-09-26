@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import StrOutputParser, PydanticOutputParser
 from langchain_core.runnables import RunnableBranch, RunnableParallel
 
@@ -16,7 +17,11 @@ from schemas import GroceryResponse
 
 load_dotenv()
 
-model = ChatGroq(model="llama-3.3-70b-versatile")
+# Groq: lightweight classification only (stays under free-tier TPM)
+classifier_model = ChatGroq(model="openai/gpt-oss-20b")
+# Gemini: generation + structured output
+generation_model = ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite")
+
 parser = StrOutputParser()
 pydantic_parser = PydanticOutputParser(pydantic_object=GroceryResponse)
 
@@ -26,20 +31,26 @@ CATEGORY_NAMES = {
     "meal_plan": "Meal Plan",
 }
 
-classifier_chain = classifier_prompt | model | parser
+classifier_chain = classifier_prompt | classifier_model | parser
 conditional_chain = RunnableBranch(
-    (lambda x: x["category"] == "substitution", substitution_prompt | model | parser),
-    (lambda x: x["category"] == "budget", budget_prompt | model | parser),
-    meal_plan_prompt | model | parser,
+    (
+        lambda x: x["category"] == "substitution",
+        substitution_prompt | generation_model | parser,
+    ),
+    (
+        lambda x: x["category"] == "budget",
+        budget_prompt | generation_model | parser,
+    ),
+    meal_plan_prompt | generation_model | parser,
 )
 parallel_chain = RunnableParallel(
     answer=conditional_chain,
-    shopping_list=shopping_prompt | model | parser,
-    estimated_cost=cost_prompt | model | parser,
+    shopping_list=shopping_prompt | generation_model | parser,
+    estimated_cost=cost_prompt | generation_model | parser,
 )
 structured_chain = (
     final_prompt.partial(format_instruction=pydantic_parser.get_format_instructions())
-    | model
+    | generation_model
     | pydantic_parser
 )
 

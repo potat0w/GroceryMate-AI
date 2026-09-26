@@ -1,7 +1,7 @@
 langchain
 langchain-core
 langchain-groq
+langchain-google-genai
 python-dotenv
 pydantic
 streamlit
- 
