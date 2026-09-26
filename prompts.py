@@ -17,9 +17,11 @@ Return only the category name.""",
 meal_plan_prompt = PromptTemplate(
     template="""You are a grocery planning assistant for Bangladeshi households.
 
-Create a practical weekly meal plan based on the following request:
+Create a practical meal plan for the duration requested in the query.
+If no duration is given, use 7 days.
+Reply politely and directly.
 
-{query}
+Query: {query}
 
 Use common and affordable Bangladeshi foods.""",
     input_variables=["query"],
@@ -71,12 +73,12 @@ cost_prompt = PromptTemplate(
     template="""Category: {category}
 
 If category is other, return an estimated cost of 0.
-Otherwise, estimate the total grocery cost for the following request:
+Otherwise, estimate grocery costs for the following request using approximate Bangladesh market prices.
 
-{query}
+Show each item with its approximate price.
+End with the total cost in BDT.
 
-Use approximate grocery prices in Bangladesh.
-Give the estimated cost in Bangladeshi Taka.""",
+Query: {query}""",
     input_variables=["query", "category"],
 )
 
@@ -95,7 +97,9 @@ Estimated Cost:
 Category:
 {category}
 
-Also provide a confidence score between 0 and 1 for the cost estimate.
+Include estimated individual item prices in the shopping_list.
+Use the total from estimated_cost as estimated_cost_bdt.
+Set confidence between 0 and 1.
 
 {format_instruction}""",
     input_variables=[
