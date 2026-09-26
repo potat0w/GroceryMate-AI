@@ -4,6 +4,8 @@ A Streamlit grocery planning chatbot built with LangChain. It routes queries wit
 
 Focused on Bangladeshi households: meal plans, ingredient substitutions, and budget estimates in BDT.
 
+**Live demo:** [https://grocerymate-ai.streamlit.app/](https://grocerymate-ai.streamlit.app/)
+
 ## Features
 
 - Chat interface with history and optional clear-chat
