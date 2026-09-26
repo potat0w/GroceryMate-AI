@@ -56,6 +56,74 @@ Groq Classifier → meal_plan | substitution | budget | other
                      Streamlit Chat UI
 ```
 
+### LangChain pipeline graph
+
+Generated with `parallel_chain.get_graph().print_ascii()` and `structured_chain.get_graph().print_ascii()`:
+
+**RunnableParallel** (`answer` via Branch + `shopping_list` + `estimated_cost`):
+
+```
+                    +----------------------------------------------------+
+                    | Parallel<answer,shopping_list,estimated_cost>Input |
+                    +----------------------------------------------------+
+                            ******              *             ******
+                      ******                     *                  ******
+                   ***                           *                        ******
+    +----------------+                  +----------------+                      ***
+    | PromptTemplate |                  | PromptTemplate |                        *
+    +----------------+                  +----------------+                        *
+             *                                   *                                *
+             *                                   *                                *
+             *                                   *                                *
++------------------------+          +------------------------+                    *
+| ChatGoogleGenerativeAI |          | ChatGoogleGenerativeAI |                    *
++------------------------+          +------------------------+                    *
+             *                                   *                                *
+             *                                   *                                *
+             *                                   *                                *
+    +-----------------+                 +-----------------+                 +--------+
+    | StrOutputParser |                 | StrOutputParser |               **| Branch |
+    +-----------------+*****            +-----------------+         ******  +--------+
+                            ******               *            ******
+                                  ******        *       ******
+                                        ***     *    ***
+                    +-----------------------------------------------------+
+                    | Parallel<answer,shopping_list,estimated_cost>Output |
+                    +-----------------------------------------------------+
+```
+
+**Pydantic structured output:**
+
+```
+      +-------------+
+      | PromptInput |
+      +-------------+
+             *
+             *
+             *
+    +----------------+
+    | PromptTemplate |
+    +----------------+
+             *
+             *
+             *
++------------------------+
+| ChatGoogleGenerativeAI |
++------------------------+
+             *
+             *
+             *
+ +----------------------+
+ | PydanticOutputParser |
+ +----------------------+
+             *
+             *
+             *
+    +-----------------+
+    | GroceryResponse |
+    +-----------------+
+```
+
 ## RunnableBranch
 
 After classification, `RunnableBranch` (`conditional_chain`) selects one specialist prompt:
