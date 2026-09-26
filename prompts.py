@@ -15,15 +15,23 @@ Return only the category name.""",
 )
 
 meal_plan_prompt = PromptTemplate(
-    template="""You are a grocery planning assistant for Bangladeshi households.
+    template="""Create a practical meal plan based on the user's request.
 
-Create a practical meal plan for the duration requested in the query.
-If no duration is given, use 7 days.
-Reply politely and directly without greetings or introductions.
+For each day, clearly show:
+- Breakfast
+- Lunch
+- Dinner
 
-Query: {query}
+Follow the exact number of days requested by the user.
+If no duration is mentioned, create a 7-day meal plan.
 
-Use common and affordable Bangladeshi foods.""",
+Stay within the user's budget if a budget is provided.
+Consider the number of people mentioned in the query.
+Use common and affordable Bangladeshi foods.
+
+Reply directly without greetings or introductions.
+
+Query: {query}""",
     input_variables=["query"],
 )
 
@@ -101,11 +109,15 @@ Estimated Cost:
 Category:
 {category}
 
+Keep the answer field complete. Do not summarize it.
+If the answer is a meal plan, preserve every day with Breakfast, Lunch, and Dinner.
+Do not replace the meal plan with only a shopping list or a short overview.
+
 Every shopping_list entry must include item name, quantity, and estimated individual price in BDT.
 Do not include any item without a price.
 Put the price as the last number in each shopping_list entry.
 Set confidence between 0 and 1.
-Reply politely and directly without greetings or introductions.
+Reply directly without greetings or introductions.
 
 {format_instruction}""",
     input_variables=[
