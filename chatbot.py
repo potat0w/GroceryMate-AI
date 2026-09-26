@@ -3,6 +3,7 @@ from langchain_groq import ChatGroq
 from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.output_parsers import StrOutputParser, PydanticOutputParser
 from langchain_core.runnables import RunnableBranch, RunnableParallel
+import re
 
 from prompts import (
     classifier_prompt,
@@ -60,10 +61,26 @@ structured_chain = (
 
 def get_response(query: str) -> GroceryResponse:
     category = classifier_chain.invoke({"query": query}).strip().lower()
+    if category == "other":
+        answer = conditional_chain.invoke({"query": query, "category": category})
+        return GroceryResponse(
+            answer=answer,
+            shopping_list=[],
+            estimated_cost_bdt=0,
+            category=CATEGORY_NAMES["other"],
+            confidence=1,
+        )
     result = parallel_chain.invoke({"query": query, "category": category})
-    return structured_chain.invoke(
+    response = structured_chain.invoke(
         {
             **result,
-            "category": CATEGORY_NAMES.get(category, "Out of Scope"),
+            "category": CATEGORY_NAMES.get(category, "Meal Plan"),
         }
     )
+    total = 0.0
+    for item in response.shopping_list:
+        nums = re.findall(r"\d+(?:\.\d+)?", item)
+        if nums:
+            total += float(nums[-1])
+    response.estimated_cost_bdt = round(total, 2)
+    return response

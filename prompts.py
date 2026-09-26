@@ -1,12 +1,12 @@
 from langchain_core.prompts import PromptTemplate
 
 classifier_prompt = PromptTemplate(
-    template="""Classify the following grocery query into one of these categories:
+    template="""Classify the query into one category:
 
-meal_plan
-substitution
-budget
-other
+meal_plan - meal planning or what to cook
+substitution - ingredient replacements
+budget - grocery price, cost, or budget
+other - anything unrelated to groceries
 
 Query: {query}
 
@@ -19,7 +19,7 @@ meal_plan_prompt = PromptTemplate(
 
 Create a practical meal plan for the duration requested in the query.
 If no duration is given, use 7 days.
-Reply politely and directly.
+Reply politely and directly without greetings or introductions.
 
 Query: {query}
 
@@ -30,9 +30,10 @@ Use common and affordable Bangladeshi foods.""",
 substitution_prompt = PromptTemplate(
     template="""You are a grocery planning assistant for Bangladeshi households.
 
-Suggest suitable ingredient substitutions for the following request:
+Suggest suitable ingredient substitutions for the following request.
+Reply politely and directly without greetings or introductions.
 
-{query}
+Query: {query}
 
 Suggest alternatives that are commonly available in Bangladesh.""",
     input_variables=["query"],
@@ -41,45 +42,48 @@ Suggest alternatives that are commonly available in Bangladesh.""",
 budget_prompt = PromptTemplate(
     template="""You are a grocery budget assistant for Bangladeshi households.
 
-Give budget guidance for the following request:
+Give budget guidance for the following request.
+Reply politely and directly without greetings or introductions.
 
-{query}
+Query: {query}
 
 Use approximate prices in Bangladeshi Taka.""",
     input_variables=["query"],
 )
 
 other_prompt = PromptTemplate(
-    template="""Politely explain that you can only help with meal planning,
-ingredient substitutions, and grocery budgeting.
+    template="""Reply politely and directly without greetings or introductions.
+Explain briefly that you can only help with meal planning, ingredient substitutions, and grocery budgeting.
+Do not include a shopping list or cost estimate.
 
 Query: {query}""",
     input_variables=["query"],
 )
 
 shopping_prompt = PromptTemplate(
-    template="""Category: {category}
+    template="""Create a grocery shopping list for the following request.
 
-If category is other, return an empty shopping list.
-Otherwise, generate a shopping list for the following grocery request:
+For every item include:
+- item name
+- quantity
+- estimated individual price in BDT
 
-{query}
+Every item must have its own estimated price.
+Use approximate Bangladesh market prices.
+Do not list any item without a price.
 
-Use common grocery items available in Bangladesh.""",
-    input_variables=["query", "category"],
+Query: {query}""",
+    input_variables=["query"],
 )
 
 cost_prompt = PromptTemplate(
-    template="""Category: {category}
+    template="""Estimate grocery costs for the following request using approximate Bangladesh market prices.
 
-If category is other, return an estimated cost of 0.
-Otherwise, estimate grocery costs for the following request using approximate Bangladesh market prices.
-
-Show each item with its approximate price.
-End with the total cost in BDT.
+Show each item with quantity and estimated individual price in BDT.
+End with the total cost in BDT as the sum of all item prices.
 
 Query: {query}""",
-    input_variables=["query", "category"],
+    input_variables=["query"],
 )
 
 final_prompt = PromptTemplate(
@@ -97,9 +101,11 @@ Estimated Cost:
 Category:
 {category}
 
-Include estimated individual item prices in the shopping_list.
-Use the total from estimated_cost as estimated_cost_bdt.
+Every shopping_list entry must include item name, quantity, and estimated individual price in BDT.
+Do not include any item without a price.
+Put the price as the last number in each shopping_list entry.
 Set confidence between 0 and 1.
+Reply politely and directly without greetings or introductions.
 
 {format_instruction}""",
     input_variables=[

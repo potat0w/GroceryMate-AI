@@ -4,6 +4,8 @@ from langchain_core.messages import HumanMessage, AIMessage
 from chatbot import get_response
 
 def format_response(result) -> str:
+    if result.category == "Out of Scope":
+        return result.answer
     items = "\n".join(f"- {item}" for item in result.shopping_list)
     return (
         f"{result.answer}\n\n"

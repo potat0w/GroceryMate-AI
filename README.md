@@ -7,8 +7,10 @@ Focused on Bangladeshi households: meal plans, ingredient substitutions, and bud
 ## Features
 
 - Chat interface with history and optional clear-chat
-- Query classification into `meal_plan`, `substitution`, or `budget`
-- Parallel generation of answer, shopping list, and cost estimate
+- Query classification into `meal_plan`, `substitution`, `budget`, or `other`
+- Out-of-scope queries get a short polite refusal (no shopping list or cost)
+- Parallel generation of answer, shopping list, and cost estimate for grocery queries
+- Shopping list items include name, quantity, and estimated individual price in BDT
 - Structured response validated by a Pydantic schema
 - Hybrid LLMs: **Groq** for classification, **Gemini** for generation and structuring
 - API keys loaded from `.env` (never committed)
@@ -32,132 +34,60 @@ project/
 User Question
       │
       ▼
-Groq Classifier → category
+Groq Classifier → meal_plan | substitution | budget | other
       │
-      ▼
-RunnableBranch (Gemini)
-  meal_plan | substitution | budget
+      ├─ other ──► RunnableBranch (other_prompt)
+      │              → short polite refusal only
+      │              → skips shopping, cost, and parallel
       │
-      ▼
-RunnableParallel (Gemini)
-  answer + shopping_list + estimated_cost
-      │
-      ▼
-Pydantic Structured Output (Gemini)
-      │
-      ▼
-Streamlit Chat UI
-```
-
-### LangChain pipeline graph
-
-Generated with `pipeline.get_graph().print_ascii()`:
-
-```
-                                                    +-----------------+
-                                                    | _classify_input |
-                                                    +-----------------+
-                                                              *
-                                                              *
-                                                              *
-                                                       +-----------+
-                                                       | _classify |
-                                                       +-----------+
-                                                              *
-                                                              *
-                                                              *
-                              +-------------------------------------------------------------+
-                              | Parallel<answer,shopping_list,estimated_cost,category>Input |
-                              +-------------------------------------------------------------+
-                                  ********             **              ***        *********
-                          ********                   **                   ***              *******
-                     *****                         **                        ****                 *********
-    +----------------+                  +----------------+                       **                        ****
-    | PromptTemplate |                  | PromptTemplate |                        *                           *
-    +----------------+                  +----------------+                        *                           *
-             *                                   *                                *                           *
-             *                                   *                                *                           *
-             *                                   *                                *                           *
-+------------------------+          +------------------------+                    *                           *
-| ChatGoogleGenerativeAI |          | ChatGoogleGenerativeAI |                    *                           *
-+------------------------+          +------------------------+                    *                           *
-             *                                   *                                *                           *
-             *                                   *                                *                           *
-             *                                   *                                *                           *
-    +-----------------+                 +-----------------+                 +--------+                    +--------+
-    | StrOutputParser |***              | StrOutputParser |                 | Lambda |                ****| Branch |
-    +-----------------+   ********      +-----------------+               **+--------+       *********    +--------+
-                                  ********             **             ****          *********
-                                          ********       **        ***     *********
-                                                  *****    **    **   *****
-                              +--------------------------------------------------------------+
-                              | Parallel<answer,shopping_list,estimated_cost,category>Output |
-                              +--------------------------------------------------------------+
-                                                              *
-                                                              *
-                                                              *
-                                                   +--------------------+
-                                                   | _prepare_structure |
-                                                   +--------------------+
-                                                              *
-                                                              *
-                                                              *
-                                                     +----------------+
-                                                     | PromptTemplate |
-                                                     +----------------+
-                                                              *
-                                                              *
-                                                              *
-                                                 +------------------------+
-                                                 | ChatGoogleGenerativeAI |
-                                                 +------------------------+
-                                                              *
-                                                              *
-                                                              *
-                                                  +----------------------+
-                                                  | PydanticOutputParser |
-                                                  +----------------------+
-                                                              *
-                                                              *
-                                                              *
-                                                    +-----------------+
-                                                    | GroceryResponse |
-                                                    +-----------------+
+      └─ grocery ► RunnableBranch (Gemini)
+                     meal_plan | substitution | budget
+                           │
+                           ▼
+                     RunnableParallel (Gemini)
+                       answer
+                       shopping_list  (name, quantity, price)
+                       estimated_cost (item prices + total)
+                           │
+                           ▼
+                     Pydantic Structured Output (Gemini)
+                           │
+                           ▼
+                     Streamlit Chat UI
 ```
 
 ## RunnableBranch
 
-After classification, `RunnableBranch` selects one specialist prompt pipeline:
+After classification, `RunnableBranch` (`conditional_chain`) selects one specialist prompt:
 
-| Category       | Pipeline              |
-|----------------|-----------------------|
-| `substitution` | Substitution assistant |
-| `budget`       | Budget estimate assistant |
-| default        | Meal plan assistant   |
+| Category       | Pipeline                    |
+|----------------|-----------------------------|
+| `substitution` | Substitution assistant      |
+| `budget`       | Budget estimate assistant   |
+| `meal_plan`    | Meal plan assistant         |
+| default        | Out-of-scope (`other`)      |
 
-Implemented in `chatbot.py` as `conditional_chain`.
+If the classifier returns `other`, only this branch runs. Shopping list, cost estimate, and `RunnableParallel` are not used.
 
 ## RunnableParallel
 
-For every request, `RunnableParallel` runs three generators at once:
+For `meal_plan`, `substitution`, and `budget` queries, `RunnableParallel` (`parallel_chain`) runs three generators at once:
 
 - **answer** — branched specialist response
-- **shopping_list** — grocery items for the query
-- **estimated_cost** — approximate cost in BDT
-
-Implemented as `parallel_chain` in `chatbot.py`.
+- **shopping_list** — items with name, quantity, and estimated price in BDT
+- **estimated_cost** — per-item prices and total cost in BDT
 
 ## Pydantic Structured Output
 
 `schemas.py` defines `GroceryResponse`:
 
 - `answer` — main reply
-- `shopping_list` — list of items
-- `estimated_cost_bdt` — cost in Taka (`> 0`)
-- `category` — query category label
+- `shopping_list` — list of items (each with name, quantity, and price)
+- `estimated_cost_bdt` — total cost in Taka (`>= 0`), summed in code from shopping-list item prices
+- `category` — display label (`Meal Plan`, `Substitution`, `Budget Estimate`, or `Out of Scope`)
 - `confidence` — cost confidence (`0`–`1`)
 
-A final LangChain step uses `PydanticOutputParser` so the model output is validated before display in Streamlit.
+For grocery queries, a final LangChain step uses `PydanticOutputParser` so the model output is validated before display. For `other`, a short refusal is returned directly with an empty shopping list and cost `0`.
 
 ## Installation
 
@@ -192,9 +122,10 @@ Open [http://localhost:8501](http://localhost:8501).
 
 ## Example Queries
 
-- **Meal plan:** “Make a cheap weekly meal plan for a family of 4”
+- **Meal plan:** “Make a cheap 5-day meal plan for a family of 4”
 - **Substitution:** “What can I use instead of chicken for curry?”
 - **Budget:** “Estimate grocery cost for a week for 2 people in Dhaka”
+- **Out of scope:** “Who won the cricket match yesterday?”
 
 ## Tech Stack
 
@@ -208,3 +139,5 @@ Open [http://localhost:8501](http://localhost:8501).
 
 - Do not commit `.env` or API keys.
 - Free-tier rate limits may apply; wait and retry if you see `429` / TPM errors.
+- Responses are polite and direct, without greetings or introductions.
+- Meal plans use the duration in the query; if none is given, they default to 7 days.
