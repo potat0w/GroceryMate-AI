@@ -6,6 +6,7 @@ classifier_prompt = PromptTemplate(
 meal_plan
 substitution
 budget
+other
 
 Query: {query}
 
@@ -46,23 +47,37 @@ Use approximate prices in Bangladeshi Taka.""",
     input_variables=["query"],
 )
 
+other_prompt = PromptTemplate(
+    template="""Politely explain that you can only help with meal planning,
+ingredient substitutions, and grocery budgeting.
+
+Query: {query}""",
+    input_variables=["query"],
+)
+
 shopping_prompt = PromptTemplate(
-    template="""Generate a shopping list for the following grocery request:
+    template="""Category: {category}
+
+If category is other, return an empty shopping list.
+Otherwise, generate a shopping list for the following grocery request:
 
 {query}
 
 Use common grocery items available in Bangladesh.""",
-    input_variables=["query"],
+    input_variables=["query", "category"],
 )
 
 cost_prompt = PromptTemplate(
-    template="""Estimate the total grocery cost for the following request:
+    template="""Category: {category}
+
+If category is other, return an estimated cost of 0.
+Otherwise, estimate the total grocery cost for the following request:
 
 {query}
 
 Use approximate grocery prices in Bangladesh.
 Give the estimated cost in Bangladeshi Taka.""",
-    input_variables=["query"],
+    input_variables=["query", "category"],
 )
 
 final_prompt = PromptTemplate(

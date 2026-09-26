@@ -9,6 +9,7 @@ from prompts import (
     meal_plan_prompt,
     substitution_prompt,
     budget_prompt,
+    other_prompt,
     shopping_prompt,
     cost_prompt,
     final_prompt,
@@ -17,9 +18,7 @@ from schemas import GroceryResponse
 
 load_dotenv()
 
-# Groq: lightweight classification only (stays under free-tier TPM)
 classifier_model = ChatGroq(model="openai/gpt-oss-20b")
-# Gemini: generation + structured output
 generation_model = ChatGoogleGenerativeAI(model="gemini-3.5-flash-lite")
 
 parser = StrOutputParser()
@@ -29,6 +28,7 @@ CATEGORY_NAMES = {
     "substitution": "Substitution",
     "budget": "Budget Estimate",
     "meal_plan": "Meal Plan",
+    "other": "Out of Scope",
 }
 
 classifier_chain = classifier_prompt | classifier_model | parser
@@ -41,7 +41,11 @@ conditional_chain = RunnableBranch(
         lambda x: x["category"] == "budget",
         budget_prompt | generation_model | parser,
     ),
-    meal_plan_prompt | generation_model | parser,
+    (
+        lambda x: x["category"] == "meal_plan",
+        meal_plan_prompt | generation_model | parser,
+    ),
+    other_prompt | generation_model | parser,
 )
 parallel_chain = RunnableParallel(
     answer=conditional_chain,
@@ -54,13 +58,12 @@ structured_chain = (
     | pydantic_parser
 )
 
-
 def get_response(query: str) -> GroceryResponse:
     category = classifier_chain.invoke({"query": query}).strip().lower()
     result = parallel_chain.invoke({"query": query, "category": category})
     return structured_chain.invoke(
         {
             **result,
-            "category": CATEGORY_NAMES.get(category, "Meal Plan"),
+            "category": CATEGORY_NAMES.get(category, "Out of Scope"),
         }
     )

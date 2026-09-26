@@ -3,7 +3,6 @@ from langchain_core.messages import HumanMessage, AIMessage
 
 from chatbot import get_response
 
-
 def format_response(result) -> str:
     items = "\n".join(f"- {item}" for item in result.shopping_list)
     return (
@@ -13,7 +12,6 @@ def format_response(result) -> str:
         f"**Estimated Cost:** ৳{result.estimated_cost_bdt:.2f}\n\n"
         f"**Confidence:** {result.confidence:.2f}"
     )
-
 
 st.set_page_config(page_title="Grocery Budget Planner", page_icon="🛒")
 st.header("🛒 Grocery Budget Planner")
