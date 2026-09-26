@@ -1,0 +1,93 @@
+from langchain_core.prompts import PromptTemplate
+
+classifier_prompt = PromptTemplate(
+    template="""Classify the following grocery query into one of these categories:
+
+meal_plan
+substitution
+budget
+
+Query: {query}
+
+Return only the category name.""",
+    input_variables=["query"],
+)
+
+meal_plan_prompt = PromptTemplate(
+    template="""You are a grocery planning assistant for Bangladeshi households.
+
+Create a practical weekly meal plan based on the following request:
+
+{query}
+
+Use common and affordable Bangladeshi foods.""",
+    input_variables=["query"],
+)
+
+substitution_prompt = PromptTemplate(
+    template="""You are a grocery planning assistant for Bangladeshi households.
+
+Suggest suitable ingredient substitutions for the following request:
+
+{query}
+
+Suggest alternatives that are commonly available in Bangladesh.""",
+    input_variables=["query"],
+)
+
+budget_prompt = PromptTemplate(
+    template="""You are a grocery budget assistant for Bangladeshi households.
+
+Give budget guidance for the following request:
+
+{query}
+
+Use approximate prices in Bangladeshi Taka.""",
+    input_variables=["query"],
+)
+
+shopping_prompt = PromptTemplate(
+    template="""Generate a shopping list for the following grocery request:
+
+{query}
+
+Use common grocery items available in Bangladesh.""",
+    input_variables=["query"],
+)
+
+cost_prompt = PromptTemplate(
+    template="""Estimate the total grocery cost for the following request:
+
+{query}
+
+Use approximate grocery prices in Bangladesh.
+Give the estimated cost in Bangladeshi Taka.""",
+    input_variables=["query"],
+)
+
+final_prompt = PromptTemplate(
+    template="""Create a final structured response from the following information.
+
+Answer:
+{answer}
+
+Shopping List:
+{shopping_list}
+
+Estimated Cost:
+{estimated_cost}
+
+Category:
+{category}
+
+Also provide a confidence score between 0 and 1 for the cost estimate.
+
+{format_instruction}""",
+    input_variables=[
+        "answer",
+        "shopping_list",
+        "estimated_cost",
+        "category",
+        "format_instruction",
+    ],
+)
